@@ -1,145 +1,134 @@
-import express from 'express';
+
+import express from "express";
 
 const app = express();
+const PORT = 3001;
 
-// Middleware to parse JSON request body
+// Middleware
 app.use(express.json());
 
-const products = [];
+// Temporary in-memory product storage
+let products = [
+  { id: 1, name: "Laptop", price: 55000 },
+  { id: 2, name: "Mobile", price: 20000 }
+];
 
-// POST - Create a new product URL: http://localhost:5000/products
-app.post("/products", (req, res) => {
-    const newProduct = req.body;
-
-    products.push(newProduct);
-
-    res.status(201).json({
-        message: "Product created successfully",
-        data: newProduct
-    });
+// Home route
+app.get("/", (req, res) => {
+  res.send("Product API is running successfully!");
 });
 
-
-// GET - Read all products
-// URL: http://localhost:5000/products
+// 1. GET all products
 app.get("/products", (req, res) => {
-    res.status(200).json({
-        message: "Products fetched successfully",
-        data: products
-    });
+  res.status(200).json({
+    message: "All products fetched successfully",
+    data: products
+  });
 });
 
-
-// GET - Read product by ID URL: http://localhost:5000/products/:id
-
+// 2. GET a single product by ID
 app.get("/products/:id", (req, res) => {
-    const productId = parseInt(req.params.id);
+  const id = Number(req.params.id);
 
-    const product = products.find(
-        (p) => p.id === productId
-    );
+  const product = products.find(p => p.id === id);
 
-    if (product) {
-        res.status(200).json({
-            message: "Product details fetched successfully",
-            data: product
-        });
-    } else {
-        res.status(404).json({
-            message: "Product not found"
-        });
-    }
+  if (!product) {
+    return res.status(404).json({
+      message: "Product not found"
+    });
+  }
+
+  res.status(200).json({
+    message: "Product found",
+    data: product
+  });
 });
 
+// 3. POST - Add a new product
+app.post("/products", (req, res) => {
+  const { name, price } = req.body;
 
-// PUT - Update product by ID URL: http://localhost:5000/products/:id
+  if (!name || price === undefined || Number(price) <= 0 || !Number.isFinite(Number(price))) {
+    return res.status(400).json({
+      message: "Please provide a valid product name and price"
+    });
+  }
 
+  const newProduct = {
+    id: products.length
+      ? Math.max(...products.map(p => p.id)) + 1
+      : 1,
+    name,
+    price: Number(price)
+  };
+
+  products.push(newProduct);
+
+  res.status(201).json({
+    message: "Product added successfully",
+    data: newProduct
+  });
+});
+
+// 4. PUT - Update a product
 app.put("/products/:id", (req, res) => {
-    const productId = parseInt(req.params.id);
-    const updateProduct = req.body;
+  const id = Number(req.params.id);
 
-    const productIndex = products.findIndex(
-        (prod) => prod.id === productId
-    );
+  const product = products.find(p => p.id === id);
 
-    if (productIndex !== -1) {
+  if (!product) {
+    return res.status(404).json({
+      message: "Product not found"
+    });
+  }
 
-        products[productIndex] = {
-            ...products[productIndex],
-            ...updateProduct
-        };
+  const { name, price } = req.body;
 
-        res.status(200).json({
-            message: "Product updated successfully",
-            data: products[productIndex]
-        });
+  if (name !== undefined) product.name = name;
 
-    } else {
-
-        res.status(404).json({
-            message: "Product not found"
-        });
-
+  if (price !== undefined) {
+    if (!Number.isFinite(Number(price)) || Number(price) <= 0) {
+      return res.status(400).json({
+        message: "Price must be a valid positive number"
+      });
     }
+    product.price = Number(price);
+  }
+
+  res.status(200).json({
+    message: "Product updated successfully",
+    data: product
+  });
 });
 
-
-
-// DELETE - Delete product by ID URL: http://localhost:5000/products/:id
+// 5. DELETE - Delete a product
 app.delete("/products/:id", (req, res) => {
-    const productId = parseInt(req.params.id);
+  const id = Number(req.params.id);
 
-    const productIndex = products.findIndex(
-        (prod) => prod.id === productId
-    );
+  const index = products.findIndex(p => p.id === id);
 
-    if (productIndex !== -1) {
+  if (index === -1) {
+    return res.status(404).json({
+      message: "Product not found"
+    });
+  }
 
-        const deleteProduct =
-            products.splice(productIndex, 1)[0];
+  const deletedProduct = products.splice(index, 1)[0];
 
-        res.status(200).json({
-            message: "Product deleted successfully",
-            data: deleteProduct
-        });
-
-    } else {
-
-        res.status(404).json({
-            message: "Product not found"
-        });
-
-    }
+  res.status(200).json({
+    message: "Product deleted successfully",
+    data: deletedProduct
+  });
 });
 
-
-
-app.listen(3001, () => {
-    console.log(
-        "Server is running at http://localhost:3001"
-    );
+// Handle unknown routes
+app.use((req, res) => {
+  res.status(404).json({
+    message: "Route not found"
+  });
 });
-//C:\Users\Admin>curl -X POST http://localhost:3001/products -H "Content-Type: application/json" -d "{\"id\":1,\"name\":\"Laptop\",\"price\":55000}"
-//{"message":"Product created successfully","data":{"id":1,"name":"Laptop","price":55000}}
-//C:\Users\Admin>curl -X POST http://localhost:3001/products -H "Content-Type: application/json" -d "{\"id\":2,\"name\":\"Mobile\",\"price\":25000}"
-//{"message":"Product created successfully","data":{"id":2,"name":"Mobile","price":25000}}
-//C:\Users\Admin>curl -X POST http://localhost:3001/products -H "Content-Type: application/json" -d "{\"id\":3,\"name\":\"Headphones\",\"price\":2000}"
-//{"message":"Product created successfully","data":{"id":3,"name":"Headphones","price":2000}}
-//C:\Users\Admin>curl http://localhost:5000/products
-//{"message":"Products fetched successfully","data":[{"id":1,"name":"Laptop","price":55000},{"id":2,"name":"Mobile","price":25000},{"id":3,"name":"Headphones","price":2000}]}
-//C:\Users\Admin>curl http://localhost:3001/products/1
-//{"message":"Product details fetched successfully","data":{"id":1,"name":"Laptop","price":55000}}
-//C:\Users\Admin>curl http://localhost:3001/products/2
-//{"message":"Product details fetched successfully","data":{"id":2,"name":"Mobile","price":25000}}
-//C:\Users\Admin>curl -X PUT http://localhost:3001/products/1 -H "Content-Type: application/json" -d "{\"name\":\"Gaming Laptop\",\"price\":65000}"
-//{"message":"Product updated successfully","data":{"id":1,"name":"Gaming Laptop","price":65000}}
-//C:\Users\Admin>curl -X PUT http://localhost:3001/products/2 -H "Content-Type: application/json" -d "{\"price\":22000}"
-//{"message":"Product updated successfully","data":{"id":2,"name":"Mobile","price":22000}}
-//C:\Users\Admin>curl http://localhost:3001/products/1
-//{"message":"Product details fetched successfully","data":{"id":1,"name":"Gaming Laptop","price":65000}}
-//C:\Users\Admin>curl -X DELETE http://localhost:3001/products/3
-//{"message":"Product deleted successfully","data":{"id":3,"name":"Headphones","price":2000}}
-//C:\Users\Adminc
-//{"message":"Product deleted successfully","data":{"id":2,"name":"Mobile","price":22000}}
-//C:\Users\Admin>curl http://localhost:3001/products
-//{"message":"Products fetched successfully","data":[{"id":1,"name":"Gaming Laptop","price":65000}]}
+
+// Start server
+app.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}`);
+});
